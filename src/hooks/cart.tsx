@@ -18,7 +18,7 @@ interface Product {
 
 interface CartContext {
   products: Product[];
-  addToCart(item: Omit<Product, 'quantity'>): void;
+  addToCart(item: Product): void;
   increment(id: string): void;
   decrement(id: string): void;
 }
@@ -30,22 +30,72 @@ const CartProvider: React.FC = ({ children }) => {
 
   useEffect(() => {
     async function loadProducts(): Promise<void> {
-      // TODO LOAD ITEMS FROM ASYNC STORAGE
+      const productsAsync = await AsyncStorage.getItem('products');
+
+      if (productsAsync) {
+        setProducts(JSON.parse(productsAsync));
+      }
     }
 
     loadProducts();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      await AsyncStorage.setItem('products', JSON.stringify(products));
+    })();
+  }, [products]);
+
   const addToCart = useCallback(async product => {
-    // TODO ADD A NEW ITEM TO THE CART
+    setProducts(item => {
+      const newProductsAsyncStorage = [...item];
+
+      const checkIfProductAlreadyExists = newProductsAsyncStorage.findIndex(
+        p => p.id === product.id,
+      );
+
+      if (checkIfProductAlreadyExists === -1) {
+        newProductsAsyncStorage.push({ ...product, quantity: 1 });
+      } else {
+        newProductsAsyncStorage[checkIfProductAlreadyExists].quantity += 1;
+      }
+
+      return newProductsAsyncStorage;
+    });
   }, []);
 
   const increment = useCallback(async id => {
-    // TODO INCREMENTS A PRODUCT QUANTITY IN THE CART
+    setProducts(item => {
+      const newProducts = [...item];
+
+      const ProductAlreadyExists = newProducts.findIndex(
+        product => product.id === id,
+      );
+
+      if (!ProductAlreadyExists) {
+        newProducts[ProductAlreadyExists].quantity += 1;
+      }
+
+      return newProducts;
+    });
   }, []);
 
-  const decrement = useCallback(async id => {
-    // TODO DECREMENTS A PRODUCT QUANTITY IN THE CART
+  const decrement = useCallback(id => {
+    setProducts(item => {
+      const newProducts = [...item];
+
+      const ProductAlreadyExists = newProducts.findIndex(p => p.id === id);
+
+      if (!ProductAlreadyExists) {
+        if (newProducts[ProductAlreadyExists].quantity <= 1) {
+          newProducts.splice(ProductAlreadyExists, 1);
+        } else {
+          newProducts[ProductAlreadyExists].quantity -= 1;
+        }
+      }
+
+      return newProducts;
+    });
   }, []);
 
   const value = React.useMemo(
